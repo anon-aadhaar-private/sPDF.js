@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "",
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx tsc --build ."
+    "build": "tsup src/index.ts --dts"
   },
   "repository": {
     "type": "git",
@@ -20,13 +20,13 @@
   "homepage": "https://github.com/RippleRurigaki/sPDF.js#readme",
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
-    "axios": "^1.3.4",
+    "@types/crypto-js": "^4.1.1",
     "crypto-js": "^4.1.1",
     "jsrsasign": "^10.6.1",
     "pdf-lib": "^1.17.1",
-    "saslprep": "^1.0.3",
-    "typescript": "^5.2.2",
-    "@types/crypto-js": "^4.1.1",
-    "@types/saslprep": "^1.0.1"
+    "typescript": "^5.2.2"
+  },
+  "devDependencies": {
+    "tsup": "^7.2.0"
   }
 }

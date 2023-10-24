@@ -21,8 +21,7 @@
     is a modifications to use on 'crypto-js' of the calculatePDF20Hash function in Mozilla's pdf.js project,
 */
 
-import CryptoJS from 'crypto-js';
-import saslprep from 'saslprep';
+import * as CryptoJS from 'crypto-js';
 import {PDFDocument as _PDFDocument,PDFDict,PDFObject,PDFName,PDFNumber,PDFContext,PDFArray,PDFHexString, PDFString, PDFBool} from "pdf-lib";
 import { buffer2Hex } from './utils';
 
@@ -389,13 +388,6 @@ export class PDFSecurity {
       case 4:
         this.dictionary = this._setupEncryptionV1V2V4(this.version, options);
         break;
-      case 5:
-        if(this.revesion === 6){
-          this.dictionary = this._setupEncryptionV5R6(options)
-        }else{
-          this.dictionary = this._setupEncryptionV5(options);
-        }
-        break;
     }
   }
 
@@ -478,145 +470,6 @@ export class PDFSecurity {
     encDict.O = PDFHexString.of(buffer2Hex(wordArrayToBuffer(ownerPasswordEntry)));
     encDict.U = PDFHexString.of(buffer2Hex(wordArrayToBuffer(userPasswordEntry)));
     encDict.P = permissions;
-    return encDict;
-  }
-
-  _setupEncryptionV5(options: SecurityOption): EncDictV5 {
-    const encDict = {
-      Filter: 'Standard',
-    } as EncDictV5;
-
-    this.keyBits = 256;
-    const permissions = getPermissionsR3(options.permissions);
-
-    const processedUserPassword = processPasswordR5R6(options.userPassword);
-    const processedOwnerPassword = options.ownerPassword
-      ? processPasswordR5R6(options.ownerPassword)
-      : processedUserPassword;
-
-    this.encryptionKey = getEncryptionKeyR5R6(
-      PDFSecurity.generateRandomWordArray,
-    );
-    const userPasswordEntry = getUserPasswordR5(
-      processedUserPassword,
-      PDFSecurity.generateRandomWordArray,
-    );
-    const userKeySalt = CryptoJS.lib.WordArray.create(
-      userPasswordEntry.words.slice(10, 12),
-      8,
-    );
-    const userEncryptionKeyEntry = getUserEncryptionKeyR5(
-      processedUserPassword,
-      userKeySalt,
-      this.encryptionKey,
-    );
-    const ownerPasswordEntry = getOwnerPasswordR5(
-      processedOwnerPassword,
-      userPasswordEntry,
-      PDFSecurity.generateRandomWordArray,
-    );
-    const ownerKeySalt = CryptoJS.lib.WordArray.create(
-      ownerPasswordEntry.words.slice(10, 12),
-      8,
-    );
-    const ownerEncryptionKeyEntry = getOwnerEncryptionKeyR5(
-      processedOwnerPassword,
-      ownerKeySalt,
-      userPasswordEntry,
-      this.encryptionKey,
-    );
-    const permsEntry = getEncryptedPermissionsR5R6(
-      permissions,
-      this.encryptionKey,
-      PDFSecurity.generateRandomWordArray,
-    );
-
-    encDict.V = 5;
-    encDict.Length = this.keyBits;
-    encDict.CF = {
-      StdCF: {
-        AuthEvent: 'DocOpen',
-        CFM: 'AESV3',
-        Length: this.keyBits / 8,
-      },
-    };
-    encDict.StmF = 'StdCF';
-    encDict.StrF = 'StdCF';
-    encDict.R = 5;
-    encDict.O = PDFHexString.of(buffer2Hex(wordArrayToBuffer(ownerPasswordEntry)));
-    encDict.OE = PDFHexString.of(buffer2Hex(wordArrayToBuffer(ownerEncryptionKeyEntry)));
-    encDict.U = PDFHexString.of(buffer2Hex(wordArrayToBuffer(userPasswordEntry)));
-    encDict.UE = PDFHexString.of(buffer2Hex(wordArrayToBuffer(userEncryptionKeyEntry)));
-    encDict.P = permissions;
-    encDict.Perms = PDFHexString.of(buffer2Hex(wordArrayToBuffer(permsEntry)));
-    return encDict;
-  }
-  _setupEncryptionV5R6(options: SecurityOption): EncDictV5 {
-    const encDict = {
-      Filter: 'Standard',
-    } as EncDictV5;
-    this.keyBits = 256;
-    const permissions = getPermissionsR3(options.permissions);
-
-    const processedUserPassword = processPasswordR5R6(options.userPassword);
-    const processedOwnerPassword = options.ownerPassword
-      ? processPasswordR5R6(options.ownerPassword)
-      : processedUserPassword;
-
-    this.encryptionKey = getEncryptionKeyR5R6(
-      PDFSecurity.generateRandomWordArray,
-    );
-    const userPasswordEntry = getUserPasswordR6(
-      processedUserPassword,
-      PDFSecurity.generateRandomWordArray,
-    );
-    const userKeySalt = CryptoJS.lib.WordArray.create(
-      userPasswordEntry.words.slice(10, 12),
-      8,
-    );
-    const userEncryptionKeyEntry = getUserEncryptionKeyR6(
-      processedUserPassword,
-      userKeySalt,
-      this.encryptionKey,
-    );
-    const ownerPasswordEntry = getOwnerPasswordR6(
-      processedOwnerPassword,
-      userPasswordEntry,
-      PDFSecurity.generateRandomWordArray,
-    );
-    const ownerKeySalt = CryptoJS.lib.WordArray.create(
-      ownerPasswordEntry.words.slice(10, 12),
-      8,
-    );
-    const ownerEncryptionKeyEntry = getOwnerEncryptionKeyR6(
-      processedOwnerPassword,
-      ownerKeySalt,
-      userPasswordEntry,
-      this.encryptionKey,
-    );
-    const permsEntry = getEncryptedPermissionsR5R6(
-      permissions,
-      this.encryptionKey,
-      PDFSecurity.generateRandomWordArray,
-    );
-    encDict.V = 5;
-    encDict.Length = this.keyBits;
-    encDict.CF = {
-      StdCF: {
-        AuthEvent: 'DocOpen',
-        CFM: 'AESV3',
-        Length: this.keyBits / 8,
-      },
-    };
-    encDict.StmF = 'StdCF';
-    encDict.StrF = 'StdCF';
-    encDict.R = 6;
-    encDict.O = PDFHexString.of(buffer2Hex(wordArrayToBuffer(ownerPasswordEntry)));
-    encDict.OE = PDFHexString.of(buffer2Hex(wordArrayToBuffer(ownerEncryptionKeyEntry)));
-    encDict.U = PDFHexString.of(buffer2Hex(wordArrayToBuffer(userPasswordEntry)));
-    encDict.UE = PDFHexString.of(buffer2Hex(wordArrayToBuffer(userEncryptionKeyEntry)));
-    encDict.P = permissions;
-    encDict.Perms = PDFHexString.of(buffer2Hex(wordArrayToBuffer(permsEntry)));
     return encDict;
   }
 
@@ -795,147 +648,6 @@ const getEncryptionKeyR2R3R4 = (
   }
   return key;
 };
-
-const getUserPasswordR5 = (
-  processedUserPassword: WordArray,
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => {
-  const validationSalt = generateRandomWordArray(8);
-  const keySalt = generateRandomWordArray(8);
-  return CryptoJS.SHA256(processedUserPassword.clone().concat(validationSalt))
-    .concat(validationSalt)
-    .concat(keySalt);
-};
-const getUserPasswordR6= (
-  processedUserPassword: WordArray,
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => {
-  const validationSalt = generateRandomWordArray(8);
-  const keySalt = generateRandomWordArray(8);
-  return getPDFSecurityHashR6(
-    processedUserPassword
-    ,processedUserPassword.clone().concat(validationSalt)
-    ,CryptoJS.lib.WordArray.create())
-    .concat(validationSalt)
-    .concat(keySalt);
-};
-const getUserEncryptionKeyR5 = (
-  processedUserPassword: WordArray,
-  userKeySalt: WordArray,
-  encryptionKey: WordArray,
-) => {
-  const key = CryptoJS.SHA256(
-    processedUserPassword.clone().concat(userKeySalt),
-  );
-  const options = {
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.NoPadding,
-    iv: CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),
-  };
-  return CryptoJS.AES.encrypt(encryptionKey, key, options).ciphertext;
-};
-const getUserEncryptionKeyR6= (
-  processedUserPassword: WordArray,
-  userKeySalt: WordArray,
-  encryptionKey: WordArray,
-) => {
-  const key = getPDFSecurityHashR6(
-    processedUserPassword
-    ,processedUserPassword.clone().concat(userKeySalt)
-    ,CryptoJS.lib.WordArray.create());
-  const options = {
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.NoPadding,
-    iv: CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),
-  };
-  return CryptoJS.AES.encrypt(encryptionKey, key, options).ciphertext;
-};
-const getOwnerPasswordR5 = (
-  processedOwnerPassword: WordArray,
-  userPasswordEntry: WordArray,
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => {
-  const validationSalt = generateRandomWordArray(8);
-  const keySalt = generateRandomWordArray(8);
-  return CryptoJS.SHA256(
-    processedOwnerPassword
-      .clone()
-      .concat(validationSalt)
-      .concat(userPasswordEntry),
-  )
-    .concat(validationSalt)
-    .concat(keySalt);
-};
-const getOwnerPasswordR6 = (
-  processedOwnerPassword: WordArray,
-  userPasswordEntry: WordArray,
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => {
-  const validationSalt = generateRandomWordArray(8);
-  const keySalt = generateRandomWordArray(8);
-  return getPDFSecurityHashR6(
-    processedOwnerPassword
-    ,processedOwnerPassword.clone().concat(validationSalt).concat(userPasswordEntry)
-    ,userPasswordEntry)
-  .concat(validationSalt)
-  .concat(keySalt);
-};
-const getOwnerEncryptionKeyR5 = (
-  processedOwnerPassword: WordArray,
-  ownerKeySalt: WordArray,
-  userPasswordEntry: WordArray,
-  encryptionKey: WordArray,
-) => {
-  const key = CryptoJS.SHA256(
-    processedOwnerPassword
-      .clone()
-      .concat(ownerKeySalt)
-      .concat(userPasswordEntry),
-  );
-  const options = {
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.NoPadding,
-    iv: CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),
-  };
-  return CryptoJS.AES.encrypt(encryptionKey, key, options).ciphertext;
-};
-const getOwnerEncryptionKeyR6 = (
-  processedOwnerPassword: WordArray,
-  ownerKeySalt: WordArray,
-  userPasswordEntry: WordArray,
-  encryptionKey: WordArray,
-) => {
-  const key = getPDFSecurityHashR6(
-    processedOwnerPassword
-    ,processedOwnerPassword.clone().concat(ownerKeySalt).concat(userPasswordEntry)
-    ,userPasswordEntry);
-  const options = {
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.NoPadding,
-    iv: CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),
-  };
-  return CryptoJS.AES.encrypt(encryptionKey, key, options).ciphertext;
-};
-const getEncryptionKeyR5R6 = (
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => generateRandomWordArray(32);
-
-const getEncryptedPermissionsR5R6 = (
-  permissions: number,
-  encryptionKey: WordArray,
-  generateRandomWordArray: generateRandomWordArrayFn,
-) => {
-  const cipher = CryptoJS.lib.WordArray.create(
-    [lsbFirstWord(permissions), 0xffffffff, 0x54616462],
-    12,
-  ).concat(generateRandomWordArray(4));
-  const options = {
-    mode: CryptoJS.mode.ECB,
-    padding: CryptoJS.pad.NoPadding,
-  };
-  return CryptoJS.AES.encrypt(cipher, encryptionKey, options).ciphertext;
-};
-
 const processPasswordR2R3R4 = (password = '') => {
   const out = new Uint8Array(32);
   const length = password.length;
@@ -954,20 +666,6 @@ const processPasswordR2R3R4 = (password = '') => {
   }
   return CryptoJS.lib.WordArray.create((out as unknown) as number[]);
 };
-
-const processPasswordR5R6 = (password = '') => {
-  password = decodeURI(encodeURIComponent(saslprep(password)));
-  const length = Math.min(127, password.length);
-  const out = new Uint8Array(length);
-
-  for (let i = 0; i < length; i++) {
-    out[i] = password.charCodeAt(i);
-  }
-
-  return CryptoJS.lib.WordArray.create((out as unknown) as number[]);
-};
-
-
 
 const lsbFirstWord = (data: number): number =>
   ((data & 0xff) << 24) |
@@ -1020,52 +718,7 @@ const checkUserpassword = (pram:{
       return;
     }
   }else if(pram.version === 5){
-    if((pram.securityRevision === 5 || pram.securityRevision === 6) && pram.UE && pram.Perms){
-      const UValid = CryptoJS.lib.WordArray.create(pram.U.subarray(0,32) as unknown as number[]);
-      const UEWord = CryptoJS.lib.WordArray.create(pram.UE as unknown as number[]);
-      const PermsWord = CryptoJS.lib.WordArray.create(pram.Perms as unknown as number[]);
-      const userValidationSalt = CryptoJS.lib.WordArray.create(pram.U.subarray(32,32+8) as unknown as number[]);
-      const userKeySalt = CryptoJS.lib.WordArray.create(pram.U.subarray(32+8,32+8+8) as unknown as number[]);
-      const processedPassword =  processPasswordR5R6(pram.userPassword);
-      const saltingValidPassword = processedPassword.clone().concat(userValidationSalt);
-      const validhash = pram.securityRevision === 5
-        ? CryptoJS.SHA256(saltingValidPassword)
-        :getPDFSecurityHashR6(
-          processedPassword
-          ,processedPassword.clone().concat(userValidationSalt)
-          ,CryptoJS.lib.WordArray.create());
-      if(validhash.toString() !== UValid.toString()){
-        // passwotd is not userpassword
-        return false;
-      }
-      const intermediateUserKey = pram.securityRevision === 5
-        ?CryptoJS.SHA256(processedPassword.clone().concat(userKeySalt))
-        :getPDFSecurityHashR6(
-          processedPassword
-          ,processedPassword.clone().concat(userKeySalt)
-          ,CryptoJS.lib.WordArray.create());
-      const fileEncryptionKey = CryptoJS.AES.decrypt(
-        CryptoJS.lib.CipherParams.create({ciphertext:UEWord})
-        ,intermediateUserKey
-        ,{"iv":CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),padding: CryptoJS.pad.NoPadding,mode:CryptoJS.mode.CBC}
-      );
-      const decPerms = wordArrayToBuffer(CryptoJS.AES.decrypt(
-        CryptoJS.lib.CipherParams.create({ciphertext:PermsWord})
-        ,fileEncryptionKey
-        ,{"iv":CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),padding: CryptoJS.pad.NoPadding,mode:CryptoJS.mode.ECB})
-      );
-      const adb = Array.from("adb").map(v=>v.charCodeAt(0));
-      if(decPerms[9] !== adb[0] || decPerms[10] !== adb[1] || decPerms[11] !== adb[2]){
-        //"Perms decrypt error"
-        return false;
-      }
-      const permission = (decPerms[3] << 24) + (decPerms[2] << 16) + (decPerms[1] << 8) + decPerms[0];
-      if(permission !== pram.P){
-        //"Perms decrypt error"
-        return false;
-      }
-      return fileEncryptionKey;
-    }
+    return
   }
 }
 const userPasswordAuthV4 = (pram:{
@@ -1131,53 +784,7 @@ const checkOwnerpassword = (pram:{
       return;
     }
   }else if(pram.version === 5){
-    if((pram.securityRevision===5 || pram.securityRevision === 6) &&pram.OE){
-      const Uword = CryptoJS.lib.WordArray.create(pram.U as unknown as number[]);
-      const OEWord = CryptoJS.lib.WordArray.create(pram.OE as unknown as number[]);
-      const validO = CryptoJS.lib.WordArray.create(pram.O.subarray(0,32) as unknown as number[]);
-      const PermsWord = CryptoJS.lib.WordArray.create(pram.Perms as unknown as number[]);
-      const ownerValidationSalt = CryptoJS.lib.WordArray.create(pram.O.subarray(32,32+8) as unknown as number[]);
-      const ownerKeySalt = CryptoJS.lib.WordArray.create(pram.O.subarray(32+8,32+8+8) as unknown as number[]);
-      const processedPassword = processPasswordR5R6(pram.ownerPassword);
-      const validHash = pram.securityRevision === 5
-        ?CryptoJS.SHA256(processedPassword.clone().concat(ownerValidationSalt).concat(Uword))
-        :getPDFSecurityHashR6(
-          processedPassword
-          ,processedPassword.clone().concat(ownerValidationSalt).concat(Uword)
-          ,Uword);
-      if(validHash.toString() !== validO.toString()){
-        //not ownerpassword;
-        return false;
-      }
-      const intermediateOwnerKey = pram.securityRevision === 5
-        ?CryptoJS.SHA256(processedPassword.clone().concat(ownerKeySalt).concat(Uword))
-        :getPDFSecurityHashR6(
-          processedPassword
-          ,processedPassword.clone().concat(ownerKeySalt).concat(Uword)
-          ,Uword);
-      const fileEncryptionKey = CryptoJS.AES.decrypt(
-        CryptoJS.lib.CipherParams.create({ciphertext:OEWord})
-        ,intermediateOwnerKey
-        ,{"iv":CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),padding: CryptoJS.pad.NoPadding,mode:CryptoJS.mode.CBC}
-      );
-      const decPerms = wordArrayToBuffer(CryptoJS.AES.decrypt(
-        CryptoJS.lib.CipherParams.create({ciphertext:PermsWord})
-        ,fileEncryptionKey
-        ,{"iv":CryptoJS.lib.WordArray.create((null as unknown) as undefined, 16),padding: CryptoJS.pad.NoPadding,mode:CryptoJS.mode.ECB})
-      );
-      const adb = Array.from("adb").map(v=>v.charCodeAt(0));
-      if(decPerms[9] !== adb[0] || decPerms[10] !== adb[1] || decPerms[11] !== adb[2]){
-        //Perms decrypt error
-        return false;
-      }
-      const permission = (decPerms[3] << 24) + (decPerms[2] << 16) + (decPerms[1] << 8) + decPerms[0];
-      if(permission !== pram.P){
-        //Perms decrypt error
-        return false;
-      }
-      //throw 0;
-      return fileEncryptionKey;
-    }
+    return
   }
 }
 const getDecryptFn = (version:number,encryptionKey:WordArray,keyBits:number)=>{
@@ -1289,61 +896,6 @@ const _getEncryptFn = (obj: number, gen: number,version:number,keyBits:number,en
           ).ciphertext,
         ),
     );
-}
-
-const getPDFSecurityHashR6 = (
-  processedPassword : WordArray,
-  salt:WordArray,
-  U:WordArray,
-)=>{
-  let hash = CryptoJS.SHA256(salt);
-  let intermediateKey = CryptoJS.lib.WordArray.create();
-
-  let idx = 0;
-  while(idx < 64 || wordArrayToBuffer(intermediateKey)[intermediateKey.sigBytes-1] > idx - 32){
-    const comb = processedPassword.clone().concat(hash).concat(U);
-    const intermediateKey2 = CryptoJS.lib.WordArray.create();
-    for(let idy=0;idy<64;idy++){
-      intermediateKey2.concat(comb)
-    }
-    intermediateKey = CryptoJS.AES.encrypt(
-      intermediateKey2,
-      CryptoJS.lib.WordArray.create(hash.words.slice(0,4)),
-      {iv:CryptoJS.lib.WordArray.create(hash.words.slice(4,8)),padding: CryptoJS.pad.NoPadding,mode:CryptoJS.mode.CBC}
-      ).ciphertext;
-    const r16 = intermediateKey.clone();
-    r16.sigBytes = 16;
-    r16.clamp();
-    // r16 % 3 = ???
-    // !! Unable 128bit modulo on JavaScript.
-    // Equivalence:
-    // :(A+B) % 3 = ((A % 3) + (B % 3)) % 3
-    // :(A*B) % 3 = ((A % 3) * (B % 3)) % 3
-    //
-    //  (2**8) % 3 = 1 ,  (2**8)*(2**8) % 3 = ((2**8) % 3 * (2**8) %3 ) % 3 = (1*1) % 3 = 1 % 3 = 1 
-    // :(2**(8*n)) % 3 = 1
-    // :(A * 2**(8*n)) % 3 = (A % 3 * 1 % 3) = (A %3 * 1) % 3 = (A % 3) % 3 = A % 3
-    // r16 % 3 = ((r16[0] * 2**(8*15)) % 3 + (r16[1] * 2**(8*14)) %3 + (r16[2] * 2**(8*13)) % 3 + ... + (r16[15] *2**(8*0))) % 3
-    //         = ((r16[0] % 3) * (2**(8*15)) % 3) % 3) % 3 + ...
-    //         = ((r16[0] % 3) * 1 % 3) % 3 + ...
-    //         = ((r16[0] % 3) % 3) % 3 + ...
-    //         = r16[0] % 3 + r16[1] % 3 + r16[2] % 3 + ... + r16[15] % 3
-    //         = (r16[0] + r16[1] + r16[2] + ... + r16[15]) % 3
-    // 255*16 < Number.MAX_SAFE_INTEGER. 
-    // OK, That is, every byte is added, to get modulo 3.
-    const remainder = (wordArrayToBuffer(r16).reduce((a,b)=>a+b,0)) % 3;
-    if(remainder === 0){
-      hash = CryptoJS.SHA256(intermediateKey);
-    }else if(remainder === 1){
-      hash = CryptoJS.SHA384(intermediateKey);
-    }else{
-      hash = CryptoJS.SHA512(intermediateKey);
-    }
-    idx++;
-  }
-  hash.sigBytes = 32;
-  hash.clamp();
-  return hash;
 }
 /* 
   7.6.3.3 Encryption Key Algorithm

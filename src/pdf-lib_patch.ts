@@ -5,20 +5,15 @@
     Licensed under the MIT license.
 */
 import {PDFDict, PDFNumber, PDFArray, PDFRawStream, PDFString, PDFHexString, PDFObject,PDFName,PDFRef,PDFContentStream} from "pdf-lib";
-import {CharCodes,assertIs,ParseSpeeds,toUint8Array, escapeRegExp,ReparseError,StalledParserError} from "pdf-lib";
+import {CharCodes,assertIs,ParseSpeeds,toUint8Array,ReparseError,StalledParserError} from "pdf-lib";
 import {PDFXRefStreamParser,PDFParser,PDFObjectStreamParser} from "pdf-lib";
-import {PDFSecurity,UserPermission as _UserPermission,SecurityOption} from "./PDFSecurity";
+import {PDFSecurity,UserPermission as _UserPermission} from "./PDFSecurity";
 import {buffer2Hex, buffer2Str} from "./utils";
 
 import {PDFDocument as _PDFDocument, LoadOptions as _LoadOptions, PDFContext as _PDFContext} from "pdf-lib";
 export interface PDFDocument extends _PDFDocument {
     load:(pdf: string | Uint8Array | ArrayBuffer, options?: LoadOptions)=> Promise<PDFDocument>;
     create:()=> Promise<PDFDocument>;
-    encrypt:(pram:{
-        userPassword:string,
-        ownerPassword:string,
-        keyBits:128|256,
-        permission:UserPermission,})=>Promise<void>,
     context:PDFContext,
 }
 interface PDFContext extends _PDFContext{
@@ -315,7 +310,6 @@ const pdf_lib_Patch = {
             }
         
             if (this.context.lookup(PDFRef.of(0))) {
-                console.warn('Removing parsed object: 0 0 R');
                 this.context.delete(PDFRef.of(0));
             }
         
@@ -526,89 +520,6 @@ const pdf_lib_Patch = {
             }
             return pdfDocument;
         }
-        _PDFDocument.prototype.encrypt = async function (pram:{
-            userPassword:string,
-            ownerPassword:string,
-            keyBits:128|256,
-            permission:UserPermission,}
-        ) {
-            //ADD:Support encrypt objects.
-            const options:SecurityOption = {
-                "userPassword":pram.userPassword,
-                "ownerPassword":pram.ownerPassword,
-                "permissions":pram.permission,
-                "pdfVersion":pram.keyBits===256?"2.0":"1.7",
-            }
-            if(!this.context.trailerInfo.ID){
-                const docID = PDFHexString.of(buffer2Hex(PDFSecurity.generateFileID(this.getInfoDict())));
-                const idArray = PDFArray.withContext(this.context);
-                idArray.push(docID);
-                idArray.push(docID);
-                this.context.trailerInfo.ID = idArray;
-            }
-            const security = PDFSecurity.create(this, options);
-            const newSecurity = this.context.obj(security.dictionary);
-            this.context.trailerInfo.Encrypt = this.context.register(newSecurity);
-            const encryptDicObjectNumber = this.context.trailerInfo.Encrypt.objectNumber;
-            await this.flush();
-            for (const obj of this.context.enumerateIndirectObjects()){
-                const ref = obj[0];
-                if(ref.objectNumber !== encryptDicObjectNumber){
-                    encryptValue(obj[0],obj[1],security)
-                }
-            }
-        }
-    }
-}
-const encryptValue = (ref:PDFRef,object:PDFObject,security:PDFSecurity) =>{
-    if(object instanceof PDFDict){
-        //@ts-ignore
-        const type = object.dict.get(PDFName.of("Type")) as PDFName;
-        //@ts-ignore
-        for(const value of object.dict){
-            if(type?.asString() === "/Sig" && value[0].asString() === "/Contents"){
-                //Skip SignContents
-                continue;
-            }
-            const encrypter = security.getEncryptFn(ref.objectNumber,ref.generationNumber);
-            if(value[1] instanceof PDFString){
-                const valueBuffer = new Uint8Array(value[1].sizeInBytes());
-                value[1].copyBytesInto(valueBuffer,0);
-                const data = encrypter(valueBuffer.subarray(1,valueBuffer.length-1)) as Uint8Array
-                //@ts-ignore ,
-                value[1].value = escapeRegExp(buffer2Str(data));
-                //@ts-ignore
-                value[1]._noEncode = true;
-            }
-            if(value[1] instanceof PDFHexString){
-                const valueBuffer = value[1].asBytes();
-                const data = encrypter(valueBuffer)
-                //@ts-ignore ,
-                value[1].value = buffer2Hex(data);
-            }
-            if(value[1] instanceof PDFArray){
-                for(const item of value[1].asArray()){
-                    encryptValue(ref,item,security)
-                }
-            }
-            if(value[1] instanceof PDFDict){
-                encryptValue(ref,value[1],security);
-            }
-        }
-    }
-    if(object instanceof PDFRawStream){
-        const encrypter = security.getEncryptFn(ref.objectNumber,ref.generationNumber);
-        const valueBuffer = object.asUint8Array();
-        const data = encrypter(valueBuffer)
-        //@ts-ignore ,
-        object.contents = data;
-    }
-    if(object instanceof PDFContentStream){
-        const encrypter = security.getEncryptFn(ref.objectNumber,ref.generationNumber);
-        const valueBuffer = object.getContents();
-        const data = encrypter(valueBuffer)
-        //@ts-ignore ,
-        object.contentsCache.value = data;
     }
 }
 const predictor = (buffer:Uint8Array,type:number,column:number) => {

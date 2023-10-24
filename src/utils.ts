@@ -14,9 +14,12 @@ export const str2Bufeer = (str:string) =>{
     for(const c of Array.from(str)){
         const code = c.charCodeAt(0);
         if(code<256){
+            // @ts-ignore
             _str += code.toString(16).padStart(2,"0");
         }else{
+            // @ts-ignore
             _str += ((code&0xFF00)>>8).toString(16).padStart(2,"0");
+            // @ts-ignore
             _str += ((code&0x00FF)).toString(16).padStart(2,"0");
         }
     }
@@ -28,6 +31,7 @@ export const buffer2Hex = (b:Uint8Array,pos?:number,len?:number) =>{
     const _len = len||b.length;
     for(let i=0;i<_len;i++){
         if(typeof b[_pos+i] === "number"){
+            // @ts-ignore
             _str.push(b[_pos+i].toString(16).padStart(2,'0'))
         }
     }
@@ -36,7 +40,7 @@ export const buffer2Hex = (b:Uint8Array,pos?:number,len?:number) =>{
 export const hex2buffer = (hex:string) => {
     const hexMap = hex.match(/.{1,2}/g);
     if(!hexMap){
-        return new Uint8Array();
+        return new Uint8Array(hex.length);
     }
     return Uint8Array.from(hexMap.map((byte) => parseInt(byte, 16)));
 }
@@ -56,19 +60,6 @@ export const imageFormatMagic = (img?:Uint8Array) => {
 export const logLevel={
     debug:1,
     none:9,
-}
-export class Log {
-    private level:number;
-
-    constructor(level:number){
-        this.level = level;
-    }
-
-    public debug(m:any){
-        if(this.level<=logLevel.debug){
-            console.log(m);
-        }
-    }
 }
 
 const units = {
